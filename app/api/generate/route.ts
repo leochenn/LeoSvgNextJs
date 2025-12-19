@@ -2,6 +2,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 // Initialize the client server-side
 const apiKey = process.env.GEMINI_API_KEY;
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
