@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { InputSection } from '../components/InputSection';
 import { SvgPreview } from '../components/SvgPreview';
 import { generateSvgFromPrompt } from '../services/geminiService';
+import { saveHistory } from '../services/historyService';
 import { GeneratedSvg, GenerationStatus, ApiError } from '../types';
 import { AlertCircle } from 'lucide-react';
 
@@ -29,6 +30,7 @@ export default function Home() {
 
             setCurrentSvg(newSvg);
             setStatus(GenerationStatus.SUCCESS);
+            saveHistory(prompt);
         } catch (err: any) {
             console.error(err);
             setStatus(GenerationStatus.ERROR);
