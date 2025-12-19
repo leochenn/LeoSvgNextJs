@@ -27,13 +27,16 @@ export const fetchHistory = async (): Promise<string[]> => {
     }
 };
 
-export const saveHistory = async (content: string): Promise<void> => {
-    if (!content.trim()) return;
+export const saveHistory = async (content: string, userId: string): Promise<void> => {
+    if (!content.trim() || !userId) return;
 
     try {
         const { error } = await supabase
             .from('input_history')
-            .insert([{ content: content.trim() }])
+            .insert([{
+                content: content.trim(),
+                user_id: userId
+            }])
             .select(); // Using select to return data, helpful for debugging if needed
 
         // Check for duplicate key error (code 23505) which we expect and ignore
@@ -44,5 +47,20 @@ export const saveHistory = async (content: string): Promise<void> => {
         }
     } catch (err) {
         console.error('Unexpected error saving history:', err);
+    }
+};
+
+export const deleteHistoryItem = async (content: string, userId: string): Promise<void> => {
+    try {
+        const { error } = await supabase
+            .from('input_history')
+            .delete()
+            .match({ content, user_id: userId });
+
+        if (error) {
+            console.error('Error deleting history item:', error);
+        }
+    } catch (err) {
+        console.error('Unexpected error deleting history item:', err);
     }
 };

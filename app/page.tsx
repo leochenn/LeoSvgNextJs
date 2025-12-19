@@ -8,10 +8,40 @@ import { saveHistory } from '../services/historyService';
 import { GeneratedSvg, GenerationStatus, ApiError } from '../types';
 import { AlertCircle } from 'lucide-react';
 
+import { Header } from '../components/Header';
+import { AuthModal } from '../components/AuthModal';
+import { supabase } from '../services/supabaseClient';
+import { User } from '@supabase/supabase-js';
+
 export default function Home() {
     const [status, setStatus] = useState<GenerationStatus>(GenerationStatus.IDLE);
     const [currentSvg, setCurrentSvg] = useState<GeneratedSvg | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
+
+    // Auth State
+    const [user, setUser] = useState<User | null>(null);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+
+    React.useEffect(() => {
+        // Check active session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUser(session?.user ?? null);
+        });
+
+        // Listen for auth changes
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ?? null);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const handleLoginClick = () => setShowAuthModal(true);
+    const handleLogoutClick = async () => {
+        await supabase.auth.signOut();
+    };
 
     const handleGenerate = async (prompt: string) => {
         setStatus(GenerationStatus.LOADING);
@@ -30,7 +60,9 @@ export default function Home() {
 
             setCurrentSvg(newSvg);
             setStatus(GenerationStatus.SUCCESS);
-            saveHistory(prompt);
+            if (user) {
+                saveHistory(prompt, user.id);
+            }
         } catch (err: any) {
             console.error(err);
             setStatus(GenerationStatus.ERROR);
@@ -42,9 +74,25 @@ export default function Home() {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-indigo-500/30 pt-8">
-            <main className="pb-20">
-                <InputSection onGenerate={handleGenerate} status={status} />
+        <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-indigo-500/30">
+            <Header
+                user={user}
+                onLogin={handleLoginClick}
+                onLogout={handleLogoutClick}
+            />
+
+            <main className="pb-20 pt-8">
+                <InputSection
+                    onGenerate={handleGenerate}
+                    status={status}
+                    user={user}
+                    onLoginClick={handleLoginClick}
+                />
+
+                <AuthModal
+                    isOpen={showAuthModal}
+                    onClose={() => setShowAuthModal(false)}
+                />
 
                 {status === GenerationStatus.ERROR && error && (
                     <div className="max-w-2xl mx-auto mt-8 px-4">

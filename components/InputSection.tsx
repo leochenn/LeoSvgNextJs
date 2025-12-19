@@ -4,16 +4,19 @@
 */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Send, Loader2, Wand2, Clock, History } from 'lucide-react';
-import { fetchHistory } from '../services/historyService';
+import { Send, Loader2, Wand2, Clock, Trash2, Lock } from 'lucide-react';
+import { fetchHistory, deleteHistoryItem } from '../services/historyService';
 import { GenerationStatus } from '../types';
+import { User } from '@supabase/supabase-js';
 
 interface InputSectionProps {
   onGenerate: (prompt: string) => void;
   status: GenerationStatus;
+  user: User | null;
+  onLoginClick: () => void;
 }
 
-export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status }) => {
+export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, user, onLoginClick }) => {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -57,16 +60,16 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status }
               fetchHistory().then(setHistory);
             }}
             onBlur={() => setTimeout(() => setShowHistory(false), 200)}
-            placeholder="e.g. A futuristic cyberpunk helmet with neon lights..."
+            placeholder={user ? "e.g. A futuristic cyberpunk helmet with neon lights..." : "Please login to generate vector art"}
             className="flex-1 bg-transparent border-none outline-none text-white placeholder-zinc-500 px-4 py-3 text-lg"
-            disabled={isLoading}
+            disabled={isLoading || !user}
           />
           <button
             type="submit"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || !user}
             className={`
               flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-200
-              ${!input.trim() || isLoading
+              ${!input.trim() || isLoading || !user
                 ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                 : 'bg-white text-zinc-950 hover:bg-zinc-200 active:scale-95 shadow-lg shadow-white/10'}
             `}
@@ -75,6 +78,11 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status }
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span className="hidden sm:inline">Crafting...</span>
+              </>
+            ) : !user ? (
+              <>
+                <Lock className="w-4 h-4" />
+                <span className="hidden sm:inline">Login Required</span>
               </>
             ) : (
               <>
@@ -86,21 +94,37 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status }
         </div>
 
         {/* History Dropdown */}
-        {showHistory && history.length > 0 && (
+        {showHistory && history.length > 0 && user && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 max-h-60 overflow-y-auto">
             {history.map((item, index) => (
-              <button
+              <div
                 key={index}
-                type="button"
-                onClick={() => {
-                  setInput(item);
-                  setShowHistory(false);
-                }}
-                className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-3 border-b border-white/5 last:border-none"
+                className="group/item flex items-center w-full border-b border-white/5 last:border-none hover:bg-white/5 transition-colors"
               >
-                <Clock className="w-4 h-4 text-zinc-500" />
-                <span className="truncate">{item}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInput(item);
+                    setShowHistory(false);
+                  }}
+                  className="flex-1 flex items-center gap-3 px-4 py-3 text-left text-zinc-300 hover:text-white min-w-0"
+                >
+                  <Clock className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <span className="truncate">{item}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteHistoryItem(item, user!.id);
+                    setHistory(prev => prev.filter(i => i !== item));
+                  }}
+                  className="mr-3 p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-white/10 transition-all shrink-0"
+                  title="Remove from history"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             ))}
           </div>
         )}
